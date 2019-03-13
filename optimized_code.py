@@ -6,14 +6,16 @@ import time
 
 bufferSize = 16
 
-OrangeIndicate = False
-GreenIndicate = False
+OrangeIndicate, GreenIndicate = False, False
+
 colorRanges = [
-        ((42, 100, 41), (91, 255, 255), "Green"),
-        ((0, 50, 80), (20, 255, 255), "Orange")]
+        ((38, 89, 100), (119, 255, 255), "Green"),
+        ((0, 100, 100), (20, 255, 255), "Orange")]
 
 pts = deque([], maxlen=bufferSize)
 pts1 = deque([], maxlen=bufferSize)
+
+x_axis, xB_axis = 0, 0
 
 counter, counter1 = 0, 0
 
@@ -22,21 +24,9 @@ counter, counter1 = 0, 0
 direction = ""
 directionB = ""
 
-vs = cv2.VideoCapture(0)
+vs = cv2.VideoCapture(1)
 
 time.sleep(2.0)
-
-
-def colordetect(orange, green):
-    if orange == True and green == True:
-        print("Detected Both colors")
-    if orange == True and green == False:
-        print("Only Orange Detected")
-    if green == True and orange == False:
-        print("Only Green Detected")
-    if green == False and orange == False:
-        print("No color detected")
-
 
 while True:
     # grab the current frame
@@ -64,33 +54,40 @@ while True:
             centerOrange = (int(MB["m10"] / MB["m00"]), int(MB["m01"] / MB["m00"]))
 
             # only proceed if the radius meets a minimum size
-            if radius > 10 and colorName == "Green":
+            if radius > 40 and colorName == "Green":
                 cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
-                print("Green = ", (int(x), int(y)))
                 cv2.putText(frame, colorName, centerGreen, cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
                 cv2.circle(frame, centerGreen, 5, (0, 0, 255), -1)
+                x_axis = int(x)
                 pts.appendleft(centerGreen)
                 if not GreenIndicate:
                     GreenIndicate = True
                     # print("Green Detect = ", GreenIndicate)
-            elif radius < 10 and colorName == "Green":
-                # print("Green Detect = ", GreenIndicate)
+            elif radius < 100:
                 GreenIndicate = False
+                # print("Green Detect = ", GreenIndicate)
 
-            if radius > 10 and colorName == "Orange":
+            if radius > 100 and colorName == "Orange":
                 cv2.circle(frame, (int(x), int(y)), int(radius), (255, 0, 0), 2)
-                print("Orange = ", (int(x), int(y)))
                 cv2.putText(frame, colorName, centerOrange, cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
                 cv2.circle(frame, centerOrange, 5, (0, 0, 255), -1)
+                xB_axis = int(x)
                 pts1.appendleft(centerOrange)
                 if not OrangeIndicate:
                     OrangeIndicate = True
                     # print("Orange Detect = ", OrangeIndicate)
-            elif radius < 10 and colorName == "Orange":
-                # print("Orange Detect = ", OrangeIndicate)
+            elif radius < 100:
                 OrangeIndicate = False
+                # print("Orange Detect = ", OrangeIndicate)
 
-            colordetect(OrangeIndicate, GreenIndicate)
+        if x_axis > xB_axis:
+            print(x_axis, ">", xB_axis, "Green Object on the right side")
+            if GreenIndicate == False:
+                print("Totally Occluded")
+        if x_axis < xB_axis:
+            print(x_axis, "<", xB_axis, "Green Object is on left side")
+            if GreenIndicate == False:
+                print("Totally Occluded")
 
         for i in np.arange(1, len(pts)):
             # if either of the tracked points are None, ignore them
@@ -98,7 +95,7 @@ while True:
                 continue
 
             # check to see if enough points have been accumulated in the buffer
-            if counter >= 10 and i == 1 and len(pts) == bufferSize:
+            if counter >= 100 and i == 1 and len(pts) == bufferSize:
                 dX = pts[-10][0] - pts[i][0]
                 dY = pts[-10][1] - pts[i][1]
                 (dirX, dirY) = ("", "")
@@ -139,7 +136,6 @@ while True:
         cv2.putText(frame, directionB, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 0, 0), 3)
         cv2.putText(frame, "dxB: {}, dyB: {}".format(dXB, dYB), (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
                     0.35, (255, 0, 0), 1)
-
     # show the frame to our screen and increment the frame counter
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
